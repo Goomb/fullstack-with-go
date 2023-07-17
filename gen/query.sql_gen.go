@@ -15,7 +15,6 @@ INSERT INTO gowebapp.exercises (Exercise_Name)
 VALUES ($1) RETURNING Exercise_ID
 `
 
-// insert a new exercise
 func (q *Queries) CreateExercise(ctx context.Context, exerciseName string) (int64, error) {
 	row := q.db.QueryRowContext(ctx, createExercise, exerciseName)
 	var exercise_id int64
@@ -52,7 +51,6 @@ type CreateUserImageParams struct {
 	ImageData   []byte `db:"image_data" json:"imageData"`
 }
 
-// insert a new image
 func (q *Queries) CreateUserImage(ctx context.Context, arg CreateUserImageParams) (GowebappImage, error) {
 	row := q.db.QueryRowContext(ctx, createUserImage, arg.UserID, arg.ContentType, arg.ImageData)
 	var i GowebappImage
@@ -94,7 +92,7 @@ func (q *Queries) CreateUsers(ctx context.Context, arg CreateUsersParams) (Goweb
 
 const createWorkout = `-- name: CreateWorkout :one
 INSERT INTO gowebapp.workouts (User_ID, Set_ID, Start_Date)
-VALUES ($1, $2, $3) RETURNING workout_id, set_id, user_id, exercise_id, start_date
+VALUES ($1, $2, $3) RETURNING workout_id, set_id, user_id, start_date
 `
 
 type CreateWorkoutParams struct {
@@ -111,7 +109,6 @@ func (q *Queries) CreateWorkout(ctx context.Context, arg CreateWorkoutParams) (G
 		&i.WorkoutID,
 		&i.SetID,
 		&i.UserID,
-		&i.ExerciseID,
 		&i.StartDate,
 	)
 	return i, err
@@ -121,7 +118,6 @@ const deleteExercise = `-- name: DeleteExercise :exec
 DELETE FROM gowebapp.exercises e WHERE e.exercise_id = $1
 `
 
-// delete a particular exercise
 func (q *Queries) DeleteExercise(ctx context.Context, exerciseID int64) error {
 	_, err := q.db.ExecContext(ctx, deleteExercise, exerciseID)
 	return err
@@ -131,7 +127,6 @@ const deleteSets = `-- name: DeleteSets :exec
 DELETE FROM gowebapp.sets s WHERE s.set_id = $1
 `
 
-// delete a particular exercise sets
 func (q *Queries) DeleteSets(ctx context.Context, setID int64) error {
 	_, err := q.db.ExecContext(ctx, deleteSets, setID)
 	return err
@@ -141,7 +136,6 @@ const deleteUserImage = `-- name: DeleteUserImage :exec
 DELETE FROM gowebapp.images i WHERE i.user_id = $1
 `
 
-// delete a particular user's image
 func (q *Queries) DeleteUserImage(ctx context.Context, userID int64) error {
 	_, err := q.db.ExecContext(ctx, deleteUserImage, userID)
 	return err
@@ -151,7 +145,6 @@ const deleteUserWorkouts = `-- name: DeleteUserWorkouts :exec
 DELETE FROM gowebapp.workouts w WHERE w.user_id = $1
 `
 
-// delete a particular user's workouts
 func (q *Queries) DeleteUserWorkouts(ctx context.Context, userID int64) error {
 	_, err := q.db.ExecContext(ctx, deleteUserWorkouts, userID)
 	return err
@@ -161,7 +154,6 @@ const deleteUsers = `-- name: DeleteUsers :exec
 DELETE FROM gowebapp.users WHERE user_id = $1
 `
 
-// delete a particular user
 func (q *Queries) DeleteUsers(ctx context.Context, userID int64) error {
 	_, err := q.db.ExecContext(ctx, deleteUsers, userID)
 	return err
@@ -171,7 +163,6 @@ const getUser = `-- name: GetUser :one
 SELECT user_id, user_name, pass_word_hash, name, config, created_at, is_enabled FROM gowebapp.users WHERE user_id = $1
 `
 
-// get users of a particular user_id
 func (q *Queries) GetUser(ctx context.Context, userID int64) (GowebappUser, error) {
 	row := q.db.QueryRowContext(ctx, getUser, userID)
 	var i GowebappUser
@@ -199,7 +190,6 @@ type GetUserImageRow struct {
 	ImageData []byte `db:"image_data" json:"imageData"`
 }
 
-// get a particular user image
 func (q *Queries) GetUserImage(ctx context.Context, userID int64) (GetUserImageRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserImage, userID)
 	var i GetUserImageRow
@@ -208,12 +198,7 @@ func (q *Queries) GetUserImage(ctx context.Context, userID int64) (GetUserImageR
 }
 
 const getUserSets = `-- name: GetUserSets :many
-SELECT 
-    u.user_id, 
-    w.workout_id, 
-    w.start_date, 
-    s.set_id, 
-    s.weight
+SELECT u.user_id, w.workout_id, w.start_date, s.set_id, s.weight
 FROM gowebapp.users u, gowebapp.workouts w, gowebapp.sets s
 WHERE u.user_id = w.user_id AND w.set_id = s.set_id AND u.user_id = $1
 `
@@ -226,7 +211,6 @@ type GetUserSetsRow struct {
 	Weight    int32     `db:"weight" json:"weight"`
 }
 
-// get a particular user information, exercise sets and workouts
 func (q *Queries) GetUserSets(ctx context.Context, userID int64) ([]GetUserSetsRow, error) {
 	rows, err := q.db.QueryContext(ctx, getUserSets, userID)
 	if err != nil {
@@ -257,11 +241,7 @@ func (q *Queries) GetUserSets(ctx context.Context, userID int64) ([]GetUserSetsR
 }
 
 const getUserWorkout = `-- name: GetUserWorkout :many
-SELECT 
-    u.user_id,
-    w.workout_id,
-    w.start_date,
-    w.set_id
+SELECT u.user_id, w.workout_id, w.start_date, w.set_id
 FROM gowebapp.users u, gowebapp.workouts w 
 WHERE u.user_id = w.user_id AND u.user_id = $1
 `
@@ -273,7 +253,6 @@ type GetUserWorkoutRow struct {
 	SetID     int64     `db:"set_id" json:"setId"`
 }
 
-// get a particular user information and workouts
 func (q *Queries) GetUserWorkout(ctx context.Context, userID int64) ([]GetUserWorkoutRow, error) {
 	rows, err := q.db.QueryContext(ctx, getUserWorkout, userID)
 	if err != nil {
@@ -306,7 +285,6 @@ const listExercises = `-- name: ListExercises :many
 SELECT exercise_id, exercise_name FROM gowebapp.exercises ORDER BY exercise_name
 `
 
-// get all exercises ordered by the exercise name
 func (q *Queries) ListExercises(ctx context.Context) ([]GowebappExercise, error) {
 	rows, err := q.db.QueryContext(ctx, listExercises)
 	if err != nil {
@@ -334,7 +312,6 @@ const listImages = `-- name: ListImages :many
 SELECT image_id, user_id, content_type, image_data FROM gowebapp.images ORDER BY image_id
 `
 
-// get all images ordered by the id
 func (q *Queries) ListImages(ctx context.Context) ([]GowebappImage, error) {
 	rows, err := q.db.QueryContext(ctx, listImages)
 	if err != nil {
@@ -367,7 +344,6 @@ const listSets = `-- name: ListSets :many
 SELECT set_id, exercise_id, weight FROM gowebapp.sets ORDER BY weight
 `
 
-// get all exercise sets ordered by weight
 func (q *Queries) ListSets(ctx context.Context) ([]GowebappSet, error) {
 	rows, err := q.db.QueryContext(ctx, listSets)
 	if err != nil {
@@ -395,7 +371,6 @@ const listUsers = `-- name: ListUsers :many
 SELECT user_id, user_name, pass_word_hash, name, config, created_at, is_enabled FROM gowebapp.users ORDER BY user_name
 `
 
-// get all users ordered by the username
 func (q *Queries) ListUsers(ctx context.Context) ([]GowebappUser, error) {
 	rows, err := q.db.QueryContext(ctx, listUsers)
 	if err != nil {
@@ -428,10 +403,9 @@ func (q *Queries) ListUsers(ctx context.Context) ([]GowebappUser, error) {
 }
 
 const listWorkouts = `-- name: ListWorkouts :many
-SELECT workout_id, set_id, user_id, exercise_id, start_date FROM gowebapp.workouts ORDER BY workout_id
+SELECT workout_id, set_id, user_id, start_date FROM gowebapp.workouts ORDER BY workout_id
 `
 
-// get all workouts ordered by id
 func (q *Queries) ListWorkouts(ctx context.Context) ([]GowebappWorkout, error) {
 	rows, err := q.db.QueryContext(ctx, listWorkouts)
 	if err != nil {
@@ -445,7 +419,6 @@ func (q *Queries) ListWorkouts(ctx context.Context) ([]GowebappWorkout, error) {
 			&i.WorkoutID,
 			&i.SetID,
 			&i.UserID,
-			&i.ExerciseID,
 			&i.StartDate,
 		); err != nil {
 			return nil, err
@@ -461,39 +434,39 @@ func (q *Queries) ListWorkouts(ctx context.Context) ([]GowebappWorkout, error) {
 	return items, nil
 }
 
-const updateSet = `-- name: UpdateSet :one
-UPDATE gowebapp.sets
-SET (Exercise_Id, Weight) = ($1, $2)
-WHERE set_id = $3 RETURNING set_id, exercise_id, weight
-`
-
-type UpdateSetParams struct {
-	ExerciseID int64 `db:"exercise_id" json:"exerciseId"`
-	Weight     int32 `db:"weight" json:"weight"`
-	SetID      int64 `db:"set_id" json:"setId"`
-}
-
-// insert a sets id
-func (q *Queries) UpdateSet(ctx context.Context, arg UpdateSetParams) (GowebappSet, error) {
-	row := q.db.QueryRowContext(ctx, updateSet, arg.ExerciseID, arg.Weight, arg.SetID)
-	var i GowebappSet
-	err := row.Scan(&i.SetID, &i.ExerciseID, &i.Weight)
-	return i, err
-}
-
 const upsertExercise = `-- name: UpsertExercise :one
 INSERT INTO gowebapp.exercises (Exercise_Name)
 VALUES ($1) ON CONFLICT (Exercise_ID) DO
-UPDATE SET Exercise_Name = EXCLUDED.Exercise_Name
-RETURNING Exercise_ID
+UPDATE
+    SET Exercise_Name = EXCLUDED.Exercise_Name
+    RETURNING Exercise_ID
 `
 
-// insert or update exercise of a particular id
 func (q *Queries) UpsertExercise(ctx context.Context, exerciseName string) (int64, error) {
 	row := q.db.QueryRowContext(ctx, upsertExercise, exerciseName)
 	var exercise_id int64
 	err := row.Scan(&exercise_id)
 	return exercise_id, err
+}
+
+const upsertSet = `-- name: UpsertSet :one
+INSERT INTO gowebapp.sets (Exercise_Id, Weight)
+values ($1, $2) ON CONFLICT (Set_ID) DO
+UPDATE
+    SET Exercise_Id = EXCLUDED.Exercise_Id, Weight = EXCLUDED.Weight
+    RETURNING Set_ID
+`
+
+type UpsertSetParams struct {
+	ExerciseID int64 `db:"exercise_id" json:"exerciseId"`
+	Weight     int32 `db:"weight" json:"weight"`
+}
+
+func (q *Queries) UpsertSet(ctx context.Context, arg UpsertSetParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, upsertSet, arg.ExerciseID, arg.Weight)
+	var set_id int64
+	err := row.Scan(&set_id)
+	return set_id, err
 }
 
 const upsertUserImage = `-- name: UpsertUserImage :one
@@ -502,7 +475,6 @@ VALUES ($1) ON CONFLICT (Image_ID) DO
 UPDATE SET Image_Data = EXCLUDED.Image_Data RETURNING Image_ID
 `
 
-// insert or update image of a particular id
 func (q *Queries) UpsertUserImage(ctx context.Context, imageData []byte) (int64, error) {
 	row := q.db.QueryRowContext(ctx, upsertUserImage, imageData)
 	var image_id int64

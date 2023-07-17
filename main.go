@@ -3,15 +3,25 @@ package main
 import (
 	"context"
 	"database/sql"
+	"flag"
 	"fmt"
-	"log"
+	"time"
 
 	chapter1 "fitness.dev/app/gen"
+	"fitness.dev/app/logger"
 
 	_ "github.com/lib/pq"
 )
 
 func main() {
+	l := flag.Bool("local", false, "true - send to stdout, false - send to logging server")
+	flag.Parse()
+
+	logger.SetLoggingOutput(*l)
+
+	logger.Logger.Debugf("Application logging to stdout = %v", *l)
+	logger.Logger.Info("Starting the application")
+
 	dbURI := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		GetAsString("DB_USER", "postgres"),
 		GetAsString("DB_PASSWORD", "mysecretpassword"),
@@ -19,66 +29,65 @@ func main() {
 		GetAsInt("DB_PORT", 5432),
 		GetAsString("DB_NAME", "postgres"),
 	)
+
 	// Open the database
 	db, err := sql.Open("postgres", dbURI)
 	if err != nil {
-		panic(err)
+		logger.Logger.Errorf("Error opening database: %s", err.Error())
 	}
 
 	// Conectivity check
 	if err := db.Ping(); err != nil {
-		log.Fatalln("Error from database ping:", err)
+		logger.Logger.Errorf("Error from database ping: %s", err.Error())
 	}
+
+	logger.Logger.Info("Database connection fine")
 
 	// Create the store
 	st := chapter1.New(db)
 
 	ctx := context.Background()
 
-	_, err = st.CreateUsers(ctx, chapter1.CreateUsersParams{
+	chuser, err := st.CreateUsers(ctx, chapter1.CreateUsersParams{
 		UserName:     "testuser",
 		PassWordHash: "hash",
 		Name:         "test",
 	})
 
 	if err != nil {
-		log.Fatalln("Error creating user :", err)
+		logger.Logger.Fatal("Error creating user")
 	}
+	logger.Logger.Info("Success - user creation")
 
 	eid, err := st.CreateExercise(ctx, "Exercise 1")
 
 	if err != nil {
-		log.Fatalln("Error creating exercise :", err)
+		logger.Logger.Errorf("Error creating exercise")
 	}
+	logger.Logger.Info("Success - exercise creation")
 
-	set, err := st.CreateSet(ctx, chapter1.CreateSetParams{
+	sid, err := st.UpsertSet(ctx, chapter1.UpsertSetParams{
 		ExerciseID: eid,
 		Weight:     100,
 	})
 
 	if err != nil {
-		log.Fatalln("Error updating exercise :", err)
+		logger.Logger.Errorf("Error updating sets")
 	}
 
-	set, err = st.UpdateSet(ctx, chapter1.UpdateSetParams{
-		ExerciseID: eid,
-		SetID:      set.SetID,
-		Weight:     2000,
+	_, err = st.UpsertWorkout(ctx, chapter1.UpsertWorkoutParams{
+		UserID:    chuser.UserID,
+		SetID:     sid,
+		StartDate: time.Time{},
 	})
 
 	if err != nil {
-		log.Fatalln("Error updating set :", err)
+		logger.Logger.Errorf("Error updating workouts: %s", err.Error())
 	}
 
-	log.Println("Done!")
+	logger.Logger.Info("Success - updating workout")
 
-	u, err := st.ListUsers(ctx)
+	logger.Logger.Info("Application complete")
 
-	if err != nil {
-		log.Fatalln("Error get user list :", err)
-	}
-
-	for _, usr := range u {
-		fmt.Println(fmt.Sprintf("Name : %s, ID : %d", usr.Name, usr.UserID))
-	}
+	defer time.Sleep(1 * time.Second)
 }

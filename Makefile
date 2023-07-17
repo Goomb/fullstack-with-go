@@ -11,7 +11,7 @@ DB_USER ?= postgres
 DB_PWD ?= mysecretpassword
 
 # psql URL
-IP = 127.0.0.1
+IP = `docker inspect --format '{{ .NetworkSettings.IPAddress }}' test-postgres`
 
 PSQLURL ?= $(DB_TYPE)://$(DB_USER):$(DB_PWD)@$(IP):5432/$(DB_NAME)
 
@@ -40,3 +40,7 @@ teardown_recreate: postgresdown postgresup
 generate:
 	@echo "Generating Go models with sqlc "
 	sqlc generate -f $(SQLC_YAML)
+
+build:
+	@echo "Building database main sample app"
+	go build -o sampledb .
